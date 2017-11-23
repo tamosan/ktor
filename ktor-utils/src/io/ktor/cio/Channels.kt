@@ -1,7 +1,10 @@
 package io.ktor.cio
 
+import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.io.*
 import java.io.*
 import java.nio.*
+import java.nio.ByteBuffer
 import java.nio.charset.*
 
 interface Channel : Closeable
@@ -47,3 +50,23 @@ suspend fun ReadChannel.readText(charset: Charset = Charsets.UTF_8): String {
     copyTo(buffer)
     return buffer.toByteArray().toString(charset)
 }
+
+fun ReadChannel.toByteReadChannel(): ByteReadChannel = writer(Unconfined) {
+    val buffer = ByteBuffer.allocate(4096)
+    while (true) {
+        buffer.clear()
+        val count = read(buffer)
+        if (count < 0) break
+
+        buffer.flip()
+        channel.writeFully(buffer)
+    }
+
+    close()
+}.channel
+
+fun WriteChannel.toByteWriteChannel(): ByteWriteChannel = reader(Unconfined) {
+    val buffer = ByteBuffer.allocate(4096)
+    channel.pass(buffer) { write(it) }
+    close()
+}.channel

@@ -1,8 +1,7 @@
 package io.ktor.server.testing
 
 import io.ktor.application.*
-import io.ktor.cio.*
-import io.ktor.client.*
+import io.ktor.client.response.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.http.HttpHeaders
@@ -12,6 +11,7 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.tests.http.*
 import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.io.*
 import kotlinx.io.streams.*
 import org.junit.*
 import org.junit.Test
@@ -19,7 +19,7 @@ import org.junit.runner.*
 import org.junit.runners.model.*
 import java.io.*
 import java.net.*
-import java.nio.*
+import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.*
 import kotlin.concurrent.*
@@ -200,15 +200,14 @@ abstract class EngineStressSuite<TEngine : ApplicationEngine, TConfiguration : A
         createAndStartServer {
             handle {
                 call.respond(object : OutgoingContent.ProtocolUpgrade() {
-                    suspend override fun upgrade(input: ReadChannel, output: WriteChannel, closeable: Closeable, engineContext: CoroutineContext, userContext: CoroutineContext) {
+                    suspend override fun upgrade(input: ByteReadChannel, output: ByteWriteChannel, closeable: Closeable, engineContext: CoroutineContext, userContext: CoroutineContext) {
                         launch(engineContext) {
                             try {
-                                output.write(ByteBuffer.wrap(endMarkerCrLfBytes))
+                                output.writeFully(endMarkerCrLfBytes)
                                 output.flush()
                                 delay(200)
                             } finally {
                                 output.close()
-                                input.close()
                                 closeable.close()
                             }
                         }
@@ -282,14 +281,14 @@ abstract class EngineStressSuite<TEngine : ApplicationEngine, TConfiguration : A
         createAndStartServer {
             get("/ll") {
                 call.respond(object : OutgoingContent.WriteChannelContent() {
-                    suspend override fun writeTo(channel: WriteChannel) {
+                    suspend override fun writeTo(channel: ByteWriteChannel) {
                         val bb: ByteBuffer = ByteBuffer.allocate(1024)
                         Random().nextBytes(bb.array())
 
                         for (i in 1..1024 * 1024) {
                             bb.clear()
                             while (bb.hasRemaining()) {
-                                channel.write(bb)
+                                channel.writeFully(bb)
                             }
                         }
 

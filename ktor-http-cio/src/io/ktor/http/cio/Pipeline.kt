@@ -136,7 +136,6 @@ suspend fun handleConnectionPipeline(input: ByteReadChannel,
         }
     } finally {
         outputsActor.close()
-        outputsActor.join()
     }
 }
 

@@ -23,7 +23,7 @@ class LocalFileContent(val file: File,
 
     // TODO: consider using WriteChannelContent to avoid piping
     // Or even make it dual-content so engine implementation can choose
-    override fun readFrom() = file.readChannel()
+    override fun readFrom() = file.inputStream().toByteReadChannel()
 }
 
 fun LocalFileContent(baseDir: File,

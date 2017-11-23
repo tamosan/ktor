@@ -4,6 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.apache.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.response.*
 import io.ktor.http.*
 import kotlinx.coroutines.experimental.*
 import org.junit.Test
@@ -68,7 +69,7 @@ class HttpClientTest {
             url.path = "/url"
             header("header", "value")
             body = "request-body"
-        }
+        }.response
 
         try {
             assertEquals(HttpStatusCode.OK, response.status)

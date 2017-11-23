@@ -8,13 +8,14 @@ import io.ktor.response.*
 import io.ktor.server.engine.*
 import io.ktor.util.*
 import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.io.*
 import java.io.*
 import java.time.*
 import java.util.concurrent.*
 import java.util.concurrent.TimeoutException
 
 class TestApplicationResponse(call: TestApplicationCall) : BaseApplicationResponse(call) {
-    private val realContent = lazy { ByteBufferWriteChannel() }
+    private val realContent = lazy { ByteChannel() }
 
     @Volatile
     private var closed = false
@@ -47,27 +48,26 @@ class TestApplicationResponse(call: TestApplicationCall) : BaseApplicationRespon
         upgrade.upgrade(call.receiveChannel(), realContent.value, Closeable { webSocketCompleted.countDown() }, CommonPool, Unconfined)
     }
 
-    override suspend fun responseChannel(): WriteChannel = realContent.value.apply {
+    override suspend fun responseChannel(): ByteWriteChannel = realContent.value.apply {
         headers[HttpHeaders.ContentLength]?.let { contentLengthString ->
             val contentLength = contentLengthString.toLong()
             if (contentLength >= Int.MAX_VALUE) {
                 throw IllegalStateException("Content length is too big for test engine")
             }
-
-            ensureCapacity(contentLength.toInt())
         }
     }
 
     val content: String?
-        get() = if (realContent.isInitialized()) {
-            realContent.value.toString(headers[HttpHeaders.ContentType]?.let { ContentType.parse(it).charset() } ?: Charsets.UTF_8)
-        } else {
-            null
+        get() {
+            val charset = headers[HttpHeaders.ContentType]?.let { ContentType.parse(it).charset() } ?: Charsets.UTF_8
+            return byteContent?.toString(charset)
         }
 
     val byteContent: ByteArray?
         get() = if (realContent.isInitialized()) {
-            realContent.value.toByteArray()
+            runBlocking(Unconfined) {
+                realContent.value.toByteArray()
+            }
         } else {
             null
         }

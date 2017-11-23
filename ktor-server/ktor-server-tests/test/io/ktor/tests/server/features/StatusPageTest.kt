@@ -2,7 +2,6 @@ package io.ktor.tests.server.features
 
 import io.ktor.application.*
 import io.ktor.cio.*
-import io.ktor.content.*
 import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.response.*

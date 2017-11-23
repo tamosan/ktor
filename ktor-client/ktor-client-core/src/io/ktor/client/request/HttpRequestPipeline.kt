@@ -1,10 +1,10 @@
 package io.ktor.client.request
 
-import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.pipeline.*
 
 
-class HttpRequestPipeline : Pipeline<Any, HttpClient>(Before, State, Transform, Render, Send) {
+class HttpRequestPipeline : Pipeline<Any, HttpRequestContext>(Before, State, Transform, Render, Send) {
     /**
      * All interceptors should accept [HttpRequestBuilder] and proceed with [HttpRequestBuilder] or [HttpClientCall].
      * Last phase should proceed with [HttpClientCall]

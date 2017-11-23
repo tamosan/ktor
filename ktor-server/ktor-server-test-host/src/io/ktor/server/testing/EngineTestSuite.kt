@@ -1,10 +1,8 @@
 package io.ktor.server.testing
 
 import io.ktor.application.*
-import io.ktor.cio.*
-import io.ktor.client.*
 import io.ktor.client.request.*
-import io.ktor.client.utils.*
+import io.ktor.client.response.*
 import io.ktor.content.*
 import io.ktor.features.*
 import io.ktor.http.*
@@ -383,7 +381,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
             header(HttpHeaders.AcceptEncoding, "gzip")
         }) {
             assertEquals(200, status.value)
-            assertEquals(file.readText(), GZIPInputStream(bodyStream).reader().use { it.readText() })
+            assertEquals(file.readText(), GZIPInputStream(receiveContent().inputStream()).reader().use { it.readText() })
             assertEquals("gzip", headers[HttpHeaders.ContentEncoding])
         }
     }
@@ -539,9 +537,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         withUrl("/?urlp=1", {
             method = HttpMethod.Post
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-            body = ByteWriteChannelBody {
-                it.writeFully("formp=2".toByteArray())
-            }
+            body = ByteArrayContent("formp=2".toByteArray())
         }) {
             assertEquals(HttpStatusCode.OK.value, status.value)
             assertEquals("1,2", readText())
@@ -553,12 +549,10 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         createAndStartServer {
             route("/echo") {
                 handle {
-                    val buffer = ByteBufferWriteChannel()
-                    call.receiveChannel().copyTo(buffer)
-
+                    val response = call.receiveChannel()
                     call.respond(object : OutgoingContent.ReadChannelContent() {
                         override val headers: ValuesMap get() = ValuesMap.Empty
-                        override fun readFrom() = buffer.toByteArray().toReadChannel()
+                        override fun readFrom() = response
                     })
                 }
             }
@@ -566,14 +560,11 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
 
         withUrl("/echo", {
             method = HttpMethod.Post
-            header(HttpHeaders.ContentType, ContentType.Text.Plain.toString())
-            body = ByteWriteChannelBody {
-                it.bufferedWriter().use { out ->
-                    out.append("POST test\n")
-                    out.append("Another line")
-                    out.flush()
-                }
-            }
+            body = WriterContent({
+                append("POST test\n")
+                append("Another line")
+                flush()
+            }, ContentType.Text.Plain)
         }) {
             assertEquals(200, status.value)
             assertEquals("POST test\nAnother line", readText())
@@ -593,11 +584,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         withUrl("/", {
             method = HttpMethod.Post
             header(HttpHeaders.ContentType, ContentType.Text.Plain.toString())
-            body = ByteWriteChannelBody {
-                it.bufferedWriter().use {
-                    it.append("POST content")
-                }
-            }
+            body = ByteArrayContent("POST content".toByteArray())
         }) {
             assertEquals(200, status.value)
             assertEquals("POST content", readText())
@@ -626,25 +613,23 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
 
         withUrl("/", {
             method = HttpMethod.Post
-            header(HttpHeaders.ContentType, ContentType.MultiPart.FormData.withParameter("boundary", "***bbb***").toString())
+            val contentType = ContentType.MultiPart.FormData
+                    .withParameter("boundary", "***bbb***")
+                    .withCharset(Charsets.ISO_8859_1)
 
-            body = ByteWriteChannelBody {
-                it.bufferedWriter(Charsets.ISO_8859_1).use { out ->
-                    out.apply {
-                        append("--***bbb***\r\n")
-                        append("Content-Disposition: form-data; name=\"a story\"\r\n")
-                        append("\r\n")
-                        append("Hi user. The snake you gave me for free ate all the birds. Please take it back ASAP.\r\n")
-                        append("--***bbb***\r\n")
-                        append("Content-Disposition: form-data; name=\"attachment\"; filename=\"original.txt\"\r\n")
-                        append("Content-Type: text/plain\r\n")
-                        append("\r\n")
-                        append("File content goes here\r\n")
-                        append("--***bbb***--\r\n")
-                        flush()
-                    }
-                }
-            }
+            body = WriterContent({
+                append("--***bbb***\r\n")
+                append("Content-Disposition: form-data; name=\"a story\"\r\n")
+                append("\r\n")
+                append("Hi user. The snake you gave me for free ate all the birds. Please take it back ASAP.\r\n")
+                append("--***bbb***\r\n")
+                append("Content-Disposition: form-data; name=\"attachment\"; filename=\"original.txt\"\r\n")
+                append("Content-Type: text/plain\r\n")
+                append("\r\n")
+                append("File content goes here\r\n")
+                append("--***bbb***--\r\n")
+                flush()
+            }, contentType)
         }) {
             assertEquals(200, status.value)
             assertEquals("a story=Hi user. The snake you gave me for free ate all the birds. Please take it back ASAP.\nfile:attachment,original.txt,File content goes here\n", readText())
@@ -794,9 +779,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         withUrl("/", {
             method = HttpMethod.Post
             header(HttpHeaders.ContentType, ContentType.Text.Plain.toString())
-            body = ByteWriteChannelBody {
-                it.writeFully("Hello".toByteArray())
-            }
+            body = ByteArrayContent("Hello".toByteArray())
         }) {
             assertEquals(200, status.value)
             assertEquals("Hello", readText())
@@ -990,7 +973,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
                 try {
                     withUrl("/$i") {
                         //setRequestProperty("Connection", "close")
-                        bodyStream.reader().use { reader ->
+                        receiveContent().inputStream().reader().use { reader ->
                             val firstByte = reader.read()
                             if (firstByte == -1) {
                                 //println("Premature end of response stream at iteration $i")
@@ -1048,7 +1031,7 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         }
 
         withUrl("/file") {
-            assertEquals(originalSha1WithSize, bodyStream.sha1WithSize())
+            assertEquals(originalSha1WithSize, receiveContent().inputStream().sha1WithSize())
         }
     }
 
@@ -1095,14 +1078,14 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
             get("/file") {
                 try {
                     call.respond(object : OutgoingContent.WriteChannelContent() {
-                        suspend override fun writeTo(channel: WriteChannel) {
+                        suspend override fun writeTo(channel: ByteWriteChannel) {
                             val bb = ByteBuffer.allocate(100)
                             for (i in 1L..1000L) {
                                 delay(100)
                                 bb.clear()
                                 bb.putLong(i)
                                 bb.flip()
-                                channel.write(bb)
+                                channel.writeFully(bb)
                                 channel.flush()
                             }
                         }
@@ -1230,23 +1213,14 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
                             append(HttpHeaders.Connection, "Upgrade")
                         }
 
-                    suspend override fun upgrade(input: ReadChannel, output: WriteChannel, closeable: Closeable, engineContext: CoroutineContext, userContext: CoroutineContext) {
+                    suspend override fun upgrade(input: ByteReadChannel, output: ByteWriteChannel, closeable: Closeable, engineContext: CoroutineContext, userContext: CoroutineContext) {
                         try {
                             val bb = ByteBuffer.allocate(8)
-                            while (bb.hasRemaining()) {
-                                if (input.read(bb) == -1) {
-                                    fail("Unexpected EOF")
-                                }
-                            }
-
+                            input.readFully(bb)
                             bb.flip()
-                            while (bb.hasRemaining()) {
-                                output.write(bb)
-                            }
-                            output.flush()
+                            output.writeFully(bb)
                         } finally {
                             output.close()
-                            input.close()
                             closeable.close()
                         }
                     }

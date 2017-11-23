@@ -2,6 +2,7 @@ package io.ktor.server.servlet
 
 import io.ktor.cio.*
 import io.ktor.content.*
+import io.ktor.http.*
 import kotlinx.coroutines.experimental.*
 import java.io.*
 import javax.servlet.http.*
@@ -46,8 +47,8 @@ class ServletUpgradeHandler : HttpUpgradeHandler {
         val servletReader = servletReader(webConnection.inputStream)
         val servletWriter = servletWriter(webConnection.outputStream)
 
-        val inputChannel = CIOReadChannelAdapter(servletReader.channel)
-        val outputChannel = CIOWriteChannelAdapter(servletWriter.channel)
+        val inputChannel = servletReader.channel
+        val outputChannel = servletWriter.channel
 
         val closeable = Closeable {
             servletWriter.channel.close()

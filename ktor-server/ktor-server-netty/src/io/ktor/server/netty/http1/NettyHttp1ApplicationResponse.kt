@@ -67,7 +67,7 @@ internal class NettyHttp1ApplicationResponse(call: NettyApplicationCall,
         }
 
         run(userAppContext) {
-            upgrade.upgrade(CIOReadChannelAdapter(upgradedReadChannel), CIOWriteChannelAdapter(upgradedWriteChannel), Close(upgradedWriteChannel, bodyHandler), engineContext, userAppContext)
+            upgrade.upgrade(upgradedReadChannel, upgradedWriteChannel, Close(upgradedWriteChannel, bodyHandler), engineContext, userAppContext)
         }
 
         (call as NettyApplicationCall).responseWriteJob.join()

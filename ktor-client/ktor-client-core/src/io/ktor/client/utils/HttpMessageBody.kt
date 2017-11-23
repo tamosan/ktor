@@ -1,10 +1,6 @@
 package io.ktor.client.utils
 
-import kotlinx.coroutines.experimental.io.*
+import io.ktor.content.*
 
 
-sealed class HttpMessageBody
-class ByteReadChannelBody(val channel: ByteReadChannel) : HttpMessageBody()
-class ByteWriteChannelBody(val block: suspend (ByteWriteChannel) -> Unit) : HttpMessageBody()
-
-object EmptyBody : HttpMessageBody()
+object EmptyContent : OutgoingContent.NoContent()

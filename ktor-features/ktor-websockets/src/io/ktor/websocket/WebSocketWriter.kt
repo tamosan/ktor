@@ -3,11 +3,13 @@ package io.ktor.websocket
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 import io.ktor.cio.*
+import kotlinx.coroutines.experimental.io.*
 import java.nio.*
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.*
 import kotlin.coroutines.experimental.*
 
-internal class WebSocketWriter(val writeChannel: WriteChannel, ctx: CoroutineContext, val pool: ByteBufferPool) {
+internal class WebSocketWriter(val writeChannel: ByteWriteChannel, ctx: CoroutineContext, val pool: ByteBufferPool) {
     private val actorFakeJob = Job()
     private val queue = actor(ctx, capacity = 8) {
         val ticket = pool.allocate(DEFAULT_BUFFER_SIZE)
@@ -81,7 +83,7 @@ internal class WebSocketWriter(val writeChannel: WriteChannel, ctx: CoroutineCon
             buffer.flip()
 
             do {
-                writeChannel.write(buffer)
+                writeChannel.writeFully(buffer)
 
                 if (!serializer.hasOutstandingBytes && !buffer.hasRemaining()) {
                     flush?.let {

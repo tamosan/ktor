@@ -25,7 +25,7 @@ fun ApplicationReceivePipeline.installDefaultTransformations() {
             MultiPartData::class -> value.multiPartData()
             String::class -> value.readText()
             ValuesMap::class -> {
-                val contentType = value.request.contentType()
+                val contentType = value.contentType()
                 when {
                     contentType.match(ContentType.Application.FormUrlEncoded) -> {
                         val string = value.readText()

@@ -4,12 +4,13 @@ import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 import io.ktor.application.*
 import io.ktor.cio.*
+import kotlinx.coroutines.experimental.io.*
 import java.io.*
 import kotlin.coroutines.experimental.*
 
 internal class RawWebSocketImpl(override val call: ApplicationCall,
-                                val readChannel: ReadChannel,
-                                val writeChannel: WriteChannel,
+                                val readChannel: ByteReadChannel,
+                                val writeChannel: ByteWriteChannel,
                                 val channel: Closeable,
                                 pool: ByteBufferPool = NoPool,
                                 val engineContext: CoroutineContext,
@@ -79,12 +80,6 @@ internal class RawWebSocketImpl(override val call: ApplicationCall,
         writer.close()
         reader.cancel()
         outgoing.close()
-
-        try {
-            readChannel.close()
-        } catch (t: Throwable) {
-            application.log.debug("Failed to close read channel")
-        }
 
         try {
             writeChannel.close()

@@ -4,7 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.response.*
-import io.ktor.client.utils.*
+import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.pipeline.*
 import io.ktor.util.*
@@ -39,15 +39,19 @@ class HttpCookies(private val storage: CookiesStorage) {
         override val key: AttributeKey<HttpCookies> = AttributeKey("HttpCookies")
 
         override fun install(feature: HttpCookies, scope: HttpClient) {
-            scope.requestPipeline.intercept(HttpRequestPipeline.State) { builder: HttpRequestBuilder ->
-                feature.forEach(builder.host) {
-                    builder.header(HttpHeaders.Cookie, renderSetCookieHeader(it))
+            scope.requestPipeline.intercept(HttpRequestPipeline.State) { content: OutgoingContent ->
+                val builder = HeadersBuilder()
+                feature.forEach(context.request.url.host) {
+                    builder.append(HttpHeaders.Cookie, renderSetCookieHeader(it))
                 }
+
+
             }
 
-            scope.responsePipeline.intercept(HttpResponsePipeline.State) { (_, request, response) ->
-                response.cookies().forEach {
-                    feature.storage[request.host] = it
+            scope.responsePipeline.intercept(HttpResponsePipeline.State) {
+                val host = context.request.url.host
+                context.response.setCookie().forEach {
+                    feature.storage[host] = it
                 }
             }
         }
@@ -55,3 +59,14 @@ class HttpCookies(private val storage: CookiesStorage) {
 }
 
 fun HttpClient.cookies(host: String): Map<String, Cookie> = feature(HttpCookies)?.get(host) ?: mapOf()
+
+fun OutgoingContent.withHeaders(headers: Headers): OutgoingContent {
+    when (this) {
+        is OutgoingContent.WriteChannelContent -> TODO()
+        is OutgoingContent.ReadChannelContent -> TODO()
+        is OutgoingContent.ByteArrayContent -> TODO()
+        is OutgoingContent.NoContent -> TODO()
+        is OutgoingContent.ProtocolUpgrade -> TODO()
+    }
+}
+

@@ -84,7 +84,7 @@ class CIOApplicationResponse(call: CIOApplicationCall,
 
     private fun hasHeader(name: String) = headersNames.any { it.equals(name, ignoreCase = true) }
 
-    suspend override fun responseChannel(): WriteChannel {
+    suspend override fun responseChannel(): ByteWriteChannel {
         sendResponseMessage(true, -1, false)
 
         val j = encodeChunked(output, engineDispatcher)
@@ -93,7 +93,7 @@ class CIOApplicationResponse(call: CIOApplicationCall,
         chunkedChannel = chunked
         chunkedJob = j
 
-        return CIOWriteChannelAdapter(chunked)
+        return chunked
     }
 
     suspend override fun respondUpgrade(upgrade: OutgoingContent.ProtocolUpgrade) {
@@ -102,7 +102,7 @@ class CIOApplicationResponse(call: CIOApplicationCall,
         sendResponseMessage(false, -1, false)
 
         val upgradedJob = Job()
-        upgrade.upgrade(CIOReadChannelAdapter(input), CIOWriteChannelAdapter(output), Closeable {
+        upgrade.upgrade(input, output, Closeable {
             output.close()
             upgradedJob.cancel()
         }, engineDispatcher, userDispatcher)

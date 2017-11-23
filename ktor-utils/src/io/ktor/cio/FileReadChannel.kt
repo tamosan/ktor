@@ -52,4 +52,3 @@ fun Path.readChannel() = toFile().readChannel()
 
 fun File.readChannel() = FileReadChannel(RandomAccessFile(this, "r"))
 fun File.readChannel(start: Long, endInclusive: Long) = FileReadChannel(RandomAccessFile(this, "r"), start, endInclusive)
-

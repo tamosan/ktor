@@ -8,6 +8,7 @@ import io.ktor.pipeline.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.util.*
+import kotlinx.coroutines.experimental.io.*
 import kotlin.properties.*
 
 class PartialContentSupport(val maxRangeCount: Int) {
@@ -107,14 +108,14 @@ class PartialContentSupport(val maxRangeCount: Int) {
                 processMultiRange(obj, channel, merged, length)
             }
         }
-        channel.close()
+//        channel.close()
     }
 
-    private suspend fun PipelineContext<Any, ApplicationCall>.processSingleRange(obj: OutgoingContent.ReadChannelContent, channel: ReadChannel, range: LongRange, length: Long) {
+    private suspend fun PipelineContext<Any, ApplicationCall>.processSingleRange(obj: OutgoingContent.ReadChannelContent, channel: ByteReadChannel, range: LongRange, length: Long) {
         proceedWith(RangeChannelProvider.Single(call.isGet(), obj.headers, channel, range, length))
     }
 
-    private suspend fun PipelineContext<Any, ApplicationCall>.processMultiRange(obj: OutgoingContent.ReadChannelContent, channel: ReadChannel, ranges: List<LongRange>, length: Long) {
+    private suspend fun PipelineContext<Any, ApplicationCall>.processMultiRange(obj: OutgoingContent.ReadChannelContent, channel: ByteReadChannel, ranges: List<LongRange>, length: Long) {
         val boundary = "ktor-boundary-" + nextNonce()
 
         call.attributes.put(Compression.SuppressionAttribute, true) // multirange with compression is not supported yet
@@ -138,9 +139,9 @@ class PartialContentSupport(val maxRangeCount: Int) {
             }
         }
 
-        class Single(val get: Boolean, val delegateHeaders: ValuesMap, val source: ReadChannel, val range: LongRange, val fullLength: Long) : RangeChannelProvider() {
+        class Single(val get: Boolean, val delegateHeaders: ValuesMap, val source: ByteReadChannel, val range: LongRange, val fullLength: Long) : RangeChannelProvider() {
             override val status: HttpStatusCode? get() = if (get) HttpStatusCode.PartialContent else null
-            override fun readFrom() = RangeReadChannel(source, range.start, range.length, closeSource = false)
+            override fun readFrom() = TODO()//RangeReadChannel(source, range.start, range.length, closeSource = false)
             override val headers by lazy {
                 ValuesMap.build(true) {
                     appendFiltered(delegateHeaders) { name, _ -> !name.equals(HttpHeaders.ContentLength, true) }
@@ -150,10 +151,10 @@ class PartialContentSupport(val maxRangeCount: Int) {
             }
         }
 
-        class Multiple(val get: Boolean, val delegateHeaders: ValuesMap, val source: ReadChannel, val ranges: List<LongRange>, val length: Long, val boundary: String, val contentType: ContentType) : RangeChannelProvider() {
+        class Multiple(val get: Boolean, val delegateHeaders: ValuesMap, val source: ByteReadChannel, val ranges: List<LongRange>, val length: Long, val boundary: String, val contentType: ContentType) : RangeChannelProvider() {
             override val status: HttpStatusCode? get() = if (get) HttpStatusCode.PartialContent else null
 
-            override fun readFrom() = MultipleRangesReadChannel.create(source, ranges, length, boundary, contentType.toString())
+            override fun readFrom() = TODO() //MultipleRangesReadChannel.create(source, ranges, length, boundary, contentType.toString())
 
             override val headers: ValuesMap
                 get() = ValuesMap.build(true) {
